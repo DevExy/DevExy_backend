@@ -1,5 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from auth.router import router as auth_router
+from db.database import engine, Base
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -12,9 +17,12 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+# Include auth router
+app.include_router(auth_router)
+
 @app.get("/")
-async def hello_world():
-    return {"message": "Hello World"}
+async def root():
+    return {"message": "Welcome to DevExy Backend API"}
 
 if __name__ == "__main__":
     import uvicorn
