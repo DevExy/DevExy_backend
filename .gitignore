@@ -1,0 +1,6 @@
+/DevExy_venv
+__pcache
+__pycache__
+*.pyc
+*.pyo
+*.pyd   
