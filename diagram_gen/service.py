@@ -68,6 +68,13 @@ class DiagramGenerator:
         {file_contents}
         
         Additional context: {description}
+        
+        IMPORTANT LAYOUT REQUIREMENTS:
+        - Maintain generous spacing between all components (at least 150-200 pixels)
+        - Avoid any component overlapping
+        - Position elements in a clear, organized grid-like structure when possible
+        - Ensure connection lines are clearly visible and don't cross through other components
+        - Use appropriate spacing based on diagram complexity
         """
         
         # Add diagram-specific instructions
@@ -94,7 +101,13 @@ class DiagramGenerator:
                   "style": {"optional": "styling"}
                 }
               ],
-              "layout": "hierarchical",
+              "layout": {
+                "type": "hierarchical", 
+                "spacing": 200,
+                "padding": 100,
+                "rankSep": 200,
+                "nodeSep": 150
+              },
               "metadata": {"version": "1.0"},
               "title": "Architecture Diagram",
               "description": "System architecture showing key components"
@@ -169,7 +182,7 @@ class DiagramGenerator:
                   ],
                   "primaryKey": ["id"],
                   "position": {"x": 100, "y": 200},
-                  "style": {"optional": "styling"}
+                  "style": {"optional": "styling", "width": 180, "height": 120}
                 }
               ],
               "relations": [
@@ -183,6 +196,11 @@ class DiagramGenerator:
                   "style": {"optional": "styling"}
                 }
               ],
+              "layout": {
+                "type": "grid",
+                "spacing": 250,
+                "padding": 100
+              },
               "metadata": {"version": "1.0"},
               "title": "Schema Diagram",
               "description": "Database schema for the application"
@@ -284,6 +302,9 @@ class DiagramGenerator:
         Make absolutely sure the output is valid JSON structure matching the specified schema.
         Don't include any explanatory text outside of the JSON structure.
         All elements must have complete required properties.
+        
+        CRITICAL: Calculate positions carefully to ensure a minimum of 200 pixels between any two components.
+        For complex diagrams with many elements, increase the spacing proportionally.
         """
         
         return prompt
