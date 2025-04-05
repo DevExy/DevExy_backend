@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from typing import Optional
 
 from auth import models, schemas, utils, dependencies
 from db.database import get_db
@@ -64,44 +63,10 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Generate token
-    access_token = utils.create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@router.post("/token", response_model=schemas.Token)
-async def get_token(user_id: int, db: Session = Depends(get_db)):
-    # Find user by id - you'd want proper authorization here in a real app
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-    
-    # Generate token
+    # Generate token with user ID
     access_token = utils.create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=schemas.User)
 async def get_current_user(current_user: models.User = Depends(dependencies.get_current_user)):
     return current_user
-
-@router.get("/user-status")
-async def get_user_status(current_user: Optional[models.User] = Depends(dependencies.get_optional_user)):
-    """Endpoint that works with or without authentication"""
-    if current_user:
-        return {
-            "authenticated": True,
-            "user_id": current_user.id
-        }
-    return {
-        "authenticated": False
-    }
-
-@router.get("/active-only")
-async def active_users_only(current_user: models.User = Depends(dependencies.get_active_user)):
-    """Only active users can access this endpoint"""
-    return {
-        "message": "You are an active user",
-        "user_id": current_user.id
-    }
