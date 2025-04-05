@@ -94,3 +94,23 @@ async def generate_tests(
             detail=f"Error generating tests: {str(e)}"
         )
 
+@router.post("/generate-integration-tests", response_model=schemas.TestGenerationResponse)
+async def generate_integration_tests(
+    request: schemas.TestGenerationRequest,
+    current_user: User = Depends(get_active_user)
+):
+    """Generate integration tests for provided files"""
+    try:
+        service = TestGenerationService()
+        generated_tests = await service.generate_integration_tests(request)
+        
+        return schemas.TestGenerationResponse(
+            tests=generated_tests,
+            message="Integration tests generated successfully"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating integration tests: {str(e)}"
+        )
+
