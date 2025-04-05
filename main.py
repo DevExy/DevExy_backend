@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth.router import router as auth_router
 from test_gen.router import router as test_gen_router
 from diagram_gen.router import router as diagram_gen_router
+from requirements_manage.router import router as requirements_router
 from db.database import engine, Base
 
 # Create database tables
@@ -23,6 +24,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(test_gen_router)
 app.include_router(diagram_gen_router)
+app.include_router(requirements_router)
 
 @app.get("/")
 async def root():
