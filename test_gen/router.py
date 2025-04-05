@@ -72,3 +72,20 @@ async def generate_stress_tests(
             detail=f"Error generating stress tests: {str(e)}"
         )
 
+@router.post("/analyze-coverage", response_model=schemas.CoverageAnalysisResponse)
+async def analyze_coverage(
+    request: schemas.CoverageAnalysisRequest,
+    current_user: User = Depends(get_active_user)
+):
+    """Analyze test coverage for provided source and test files"""
+    try:
+        service = TestGenerationService()
+        coverage_analysis = await service.analyze_test_coverage(request)
+        
+        return coverage_analysis
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error analyzing test coverage: {str(e)}"
+        )
+
