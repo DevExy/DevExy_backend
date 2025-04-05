@@ -1,6 +1,7 @@
 import os
 from typing import List, AsyncGenerator
 import asyncio
+import json
 from google import genai
 from fastapi import HTTPException, status
 from pydantic import BaseModel
@@ -36,19 +37,57 @@ class TestGenerationService:
         
         Generate comprehensive unit tests that cover the main functionality.
         For each file, provide a corresponding test file in the appropriate location within {request.test_directory}.
+        
+        Format your response as a JSON array of test files, where each test file has a 'filepath' and 'content' property. Example:
+        [
+            {{
+                "filepath": "tests/example_test.py",
+                "content": "# Test content here\\n..."
+            }}
+        ]
         """
         
         try:
-            response = await self.client.models.generate_content(
+            # Run the synchronous API call in a thread pool to avoid blocking
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
                 model="gemini-2.0-flash",
-                contents=prompt,
-                config={
-                    'response_mime_type': 'application/json',
-                    'response_schema': List[schemas.GeneratedTest],
-                }
+                contents=prompt
             )
             
-            return response.parsed
+            # Parse the JSON response string into a Python object
+            try:
+                # Try to extract JSON from the response text
+                response_text = response.text
+                generated_tests_data = json.loads(response_text)
+                
+                # Convert the parsed JSON data to our schema objects
+                generated_tests = [
+                    schemas.GeneratedTest(filepath=test["filepath"], content=test["content"])
+                    for test in generated_tests_data
+                ]
+                
+                return generated_tests
+            except json.JSONDecodeError as e:
+                # If response isn't valid JSON, try to extract JSON from the text
+                # It might be embedded in a markdown code block or have extra text
+                import re
+                json_match = re.search(r'\[\s*{.*}\s*\]', response.text, re.DOTALL)
+                if json_match:
+                    try:
+                        generated_tests_data = json.loads(json_match.group(0))
+                        generated_tests = [
+                            schemas.GeneratedTest(filepath=test["filepath"], content=test["content"])
+                            for test in generated_tests_data
+                        ]
+                        return generated_tests
+                    except:
+                        pass
+                    
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to parse generated tests: {str(e)}"
+                )
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -81,10 +120,12 @@ class TestGenerationService:
         For each file, provide a corresponding test file in the appropriate location within {request.test_directory}.
         
         Format your response as JSON compatible with this schema:
-        List[{{
-            "filepath": "path/to/test/file.py",
-            "content": "# Test file content here"
-        }}]
+        [
+            {{
+                "filepath": "path/to/test/file.py",
+                "content": "# Test file content here"
+            }}
+        ]
         """
         
         try:

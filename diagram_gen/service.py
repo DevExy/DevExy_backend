@@ -34,7 +34,7 @@ class DiagramGenerator:
         try:
             # Using a simpler approach without response_schema to avoid default value issues
             response = self.client.models.generate_content(
-                model='gemini-1.5-pro',
+                model='gemini-2.0-flash',
                 contents=prompt
             )
             
@@ -296,7 +296,7 @@ class DiagramGenerator:
         
         try:
             response = self.client.models.generate_content_stream(
-                model="gemini-1.5-pro",
+                model="gemini-2.0-flash",
                 contents=prompt,
             )
             
