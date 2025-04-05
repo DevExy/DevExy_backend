@@ -528,3 +528,182 @@ class TestGenerationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error analyzing test coverage: {str(e)}"
             )
+    
+    async def analyze_test_priority(self, request: schemas.TestPriorityRequest) -> schemas.TestPriorityResponse:
+        """Analyze test case priority and provide risk assessment"""
+        
+        # Create prompt with source code files
+        source_files_content = "\n\n".join([
+            f"Source File: {file.filepath}\n```\n{file.content}\n```" 
+            for file in request.source_files
+        ])
+        
+        # Create prompt with test files
+        test_files_content = "\n\n".join([
+            f"Test File: {file.filepath}\n```\n{file.content}\n```" 
+            for file in request.test_files
+        ])
+        
+        prompt = f"""
+        Analyze the following source code and test files to create a comprehensive test priority and risk assessment report.
+        Determine which test cases are most critical, what security concerns exist, and what the impact would be if tests fail.
+        
+        ## SOURCE CODE FILES
+        {source_files_content}
+        
+        ## TEST FILES
+        {test_files_content}
+        
+        Additional context: {request.description}
+        Business criticality context: {request.code_criticality_context or "No specific business context provided"}
+        
+        Create a detailed report that includes:
+        
+        1. Test Case Prioritization:
+           - Assign priority scores (0-10) to each test case based on:
+             - Code complexity
+             - Business criticality of the tested feature
+             - Security implications
+             - Data integrity concerns
+             - User impact if the feature fails
+             - Error handling coverage
+             - Edge case coverage
+           - For each high-priority test, explain why it's critical
+        
+        2. Risk Assessment:
+           - Identify potential security vulnerabilities and their severity
+           - Classify tests by risk categories (security, data integrity, etc.)
+           - Assess the impact of test failures on production systems
+           - Identify tests that verify critical business logic
+           - Evaluate tests that check compliance requirements
+        
+        3. Security Analysis:
+           - Identify tests that verify authentication, authorization, input validation
+           - Flag missing security tests for potential attack vectors
+           - Recommend additional security tests where needed
+           - Reference relevant CWE (Common Weakness Enumeration) identifiers
+        
+        4. Dependency Analysis:
+           - Identify relationships between tests and components
+           - Determine which tests verify integration points
+           - Assess cascading failure risks
+        
+        Format your response as a detailed JSON object with the following structure:
+        
+        {{
+            "summary": {{
+                "overall_assessment": "Detailed summary of the overall test priority assessment",
+                "critical_areas": ["Area1", "Area2"],
+                "high_risk_count": 5,
+                "medium_risk_count": 8,
+                "low_risk_count": 12,
+                "security_vulnerability_count": 3,
+                "top_priority_tests_count": 5
+            }},
+            "test_priorities": [
+                {{
+                    "test_name": "test_user_authentication",
+                    "filepath": "tests/test_auth.py",
+                    "test_line": 45,
+                    "priority_score": 9.5,
+                    "risk_categories": [
+                        {{
+                            "name": "security",
+                            "description": "Tests authentication logic which is critical for system security",
+                            "severity": 9.8,
+                            "impact_areas": ["security", "data_protection", "compliance"]
+                        }}
+                    ],
+                    "failure_impact": "Authentication bypass could allow unauthorized access to sensitive data",
+                    "security_concerns": "Potential for authentication bypass if this functionality fails",
+                    "dependencies": ["user_service", "authentication_middleware"],
+                    "coverage_impact": 85.5
+                }}
+            ],
+            "security_vulnerabilities": [
+                {{
+                    "description": "Potential SQL injection in user input handling",
+                    "severity": 8.5,
+                    "affected_code": "src/api/user_controller.py:78-92",
+                    "mitigation_recommendations": [
+                        "Use parameterized queries",
+                        "Add input validation tests"
+                    ],
+                    "cwe_reference": "CWE-89"
+                }}
+            ],
+            "visualization_data": {{
+                "priority_distribution": {{
+                    "high": 5,
+                    "medium": 8,
+                    "low": 12
+                }},
+                "risk_category_distribution": {{
+                    "security": 7,
+                    "data_integrity": 5,
+                    "performance": 3,
+                    "compliance": 4
+                }},
+                "critical_tests_by_module": {{
+                    "authentication": 3,
+                    "payment_processing": 4,
+                    "data_storage": 2
+                }},
+                "security_impact_scores": [
+                    {{
+                        "test_name": "test_user_authentication",
+                        "score": 9.5,
+                        "category": "authentication"
+                    }},
+                    {{
+                        "test_name": "test_input_validation",
+                        "score": 8.7,
+                        "category": "input_validation"
+                    }}
+                ]
+            }},
+            "recommendations": [
+                "Add more tests for authentication failure scenarios",
+                "Implement CSRF protection tests",
+                "Increase test coverage for payment processing edge cases"
+            ]
+        }}
+        """
+        
+        try:
+            # Run the synchronous API call in a thread pool to avoid blocking
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model="gemini-2.0-flash",
+                contents=prompt
+            )
+            
+            # Parse the JSON response string into a Python object
+            try:
+                # Try to extract JSON from the response text
+                response_text = response.text
+                priority_analysis_data = json.loads(response_text)
+                
+                # Convert the parsed JSON data to our schema object
+                return schemas.TestPriorityResponse(**priority_analysis_data)
+                
+            except json.JSONDecodeError as e:
+                # If response isn't valid JSON, try to extract JSON from the text
+                import re
+                json_match = re.search(r'{.*}', response.text, re.DOTALL)
+                if json_match:
+                    try:
+                        priority_analysis_data = json.loads(json_match.group(0))
+                        return schemas.TestPriorityResponse(**priority_analysis_data)
+                    except:
+                        pass
+                    
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to parse test priority analysis: {str(e)}"
+                )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error analyzing test priorities: {str(e)}"
+            )

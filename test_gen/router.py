@@ -89,3 +89,20 @@ async def analyze_coverage(
             detail=f"Error analyzing test coverage: {str(e)}"
         )
 
+@router.post("/analyze-test-priority", response_model=schemas.TestPriorityResponse)
+async def analyze_test_priority(
+    request: schemas.TestPriorityRequest,
+    current_user: User = Depends(get_active_user)
+):
+    """Analyze test case priority and provide risk assessment"""
+    try:
+        service = TestGenerationService()
+        priority_analysis = await service.analyze_test_priority(request)
+        
+        return priority_analysis
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error analyzing test priorities: {str(e)}"
+        )
+

@@ -92,3 +92,46 @@ class EnhancedCoverageAnalysisResponse(BaseModel):
     visualization_data: EnhancedVisualizationData
 
 CoverageAnalysisResponse = EnhancedCoverageAnalysisResponse
+
+class TestPriorityRequest(BaseModel):
+    source_files: List[FileContent]
+    test_files: List[FileContent]
+    description: Optional[str] = "Analyze test case priority and risk assessment"
+    code_criticality_context: Optional[str] = None  # Additional business context about code criticality
+
+class RiskCategory(BaseModel):
+    name: str
+    description: str
+    severity: float  # 0-10 scale
+    impact_areas: List[str]  # e.g., ["security", "data_integrity", "user_experience"]
+
+class TestCasePriority(BaseModel):
+    test_name: str
+    filepath: str
+    test_line: int
+    priority_score: float  # 0-10 scale
+    risk_categories: List[RiskCategory]
+    failure_impact: str
+    security_concerns: Optional[str] = None
+    dependencies: List[str]  # Other components that depend on this functionality
+    coverage_impact: float  # Percentage of critical code covered by this test
+
+class SecurityVulnerability(BaseModel):
+    description: str
+    severity: float  # 0-10 scale
+    affected_code: str
+    mitigation_recommendations: List[str]
+    cwe_reference: Optional[str] = None  # Common Weakness Enumeration reference
+
+class PriorityVisualizationData(BaseModel):
+    priority_distribution: Dict[str, int]  # Priority levels and count of tests
+    risk_category_distribution: Dict[str, int]  # Risk categories and count of tests
+    critical_tests_by_module: Dict[str, int]  # Module names and count of critical tests
+    security_impact_scores: List[Dict[str, Any]]  # Security data for visualization
+
+class TestPriorityResponse(BaseModel):
+    summary: Dict[str, Any]
+    test_priorities: List[TestCasePriority]
+    security_vulnerabilities: List[SecurityVulnerability]
+    visualization_data: PriorityVisualizationData
+    recommendations: List[str]
