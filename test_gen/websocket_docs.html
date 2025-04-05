@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>DevExy Unit Test Generation WebSocket Tester</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 1000px;
+                margin: 0 auto;
+                padding: 20px;
+                line-height: 1.6;
+            }
+            textarea {
+                width: 100%;
+                height: 200px;
+                margin: 10px 0;
+                font-family: monospace;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            #output {
+                border: 1px solid #ccc;
+                padding: 10px;
+                height: 300px;
+                overflow: auto;
+                background-color: #f8f8f8;
+                font-family: monospace;
+                white-space: pre-wrap;
+                border-radius: 4px;
+            }
+            button {
+                padding: 10px 15px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                cursor: pointer;
+                margin-right: 10px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            button:hover {
+                background-color: #45a049;
+            }
+            button:disabled {
+                background-color: #cccccc;
+                cursor: not-allowed;
+            }
+            .controls {
+                margin: 15px 0;
+            }
+            h2 {
+                margin-top: 30px;
+                color: #333;
+                border-bottom: 1px solid #eee;
+                padding-bottom: 10px;
+            }
+            .status-connected {
+                color: green;
+                font-weight: bold;
+            }
+            .status-disconnected {
+                color: red;
+                font-weight: bold;
+            }
+            .card {
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .header {
+                background-color: #f5f5f5;
+                padding: 15px;
+                border-radius: 8px 8px 0 0;
+                margin-bottom: 20px;
+            }
+            .example-code {
+                background-color: #f5f5f5;
+                padding: 15px;
+                border-radius: 4px;
+                margin: 10px 0;
+                font-family: monospace;
+                overflow-x: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>DevExy Unit Test Generation WebSocket Tester</h1>
+            <p>This interactive tool allows you to test the WebSocket API for generating unit tests in real-time.</p>
+        </div>
+        
+        <div class="card">
+            <h2>Connection</h2>
+            <p>Status: <span id="connectionStatus" class="status-disconnected">Disconnected</span></p>
+            
+            <div class="controls">
+                <button id="connectBtn" onclick="connectWebSocket()">Connect</button>
+                <button id="disconnectBtn" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Test Input</h2>
+            <p>Enter your code files to generate unit tests:</p>
+            <textarea id="inputData">{
+    "files": [
+        {
+            "filepath": "app/calculator.py",
+            "content": "def add(a, b):\\n    return a + b\\n\\ndef subtract(a, b):\\n    return a - b\\n\\ndef multiply(a, b):\\n    return a * b\\n\\ndef divide(a, b):\\n    if b == 0:\\n        raise ValueError(\\"Cannot divide by zero\\")\\n    return a / b"
+        }
+    ],
+    "test_directory": "tests"
+}</textarea>
+            
+            <div class="controls">
+                <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+                <button onclick="clearOutput()">Clear Output</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Output</h2>
+            <div id="output"></div>
+        </div>
+        
+        <div class="card">
+            <h2>Documentation</h2>
+            <h3>Authentication</h3>
+            <p>The WebSocket endpoint requires authentication. You need to provide a valid JWT token as a query parameter:</p>
+            <div class="example-code">
+ws://example.com/test-gen/ws/generate-unit-tests?token=your_jwt_token_here
+            </div>
+            
+            <h3>Request Format</h3>
+            <p>The request must be a JSON object with the following structure:</p>
+            <div class="example-code">
+{
+    "files": [
+        {
+            "filepath": "path/to/file.py",
+            "content": "# Your code here"
+        },
+        // Add more files as needed
+    ],
+    "test_directory": "tests"  // Optional, defaults to "tests"
+}
+            </div>
+            
+            <h3>Response Format</h3>
+            <p>The response will be streamed as text chunks that together form a JSON array of test files:</p>
+            <div class="example-code">
+[
+    {
+        "filepath": "tests/test_file.py",
+        "content": "# Generated test content"
+    },
+    // More test files may be included
+]
+            </div>
+        </div>
+        
+        <script>
+            let ws = null;
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const sendBtn = document.getElementById('sendBtn');
+            const connectionStatus = document.getElementById('connectionStatus');
+            
+            function connectWebSocket() {
+                // Get token from local storage or prompt the user
+                const token = prompt("Please enter your authentication token:", "");
+                if (!token) {
+                    addToOutput("Authentication token is required");
+                    return;
+                }
+                
+                const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+                const wsUrl = protocol + window.location.host + `/test-gen/ws/generate-unit-tests?token=${encodeURIComponent(token)}`;
+                
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function(event) {
+                    connectionStatus.textContent = 'Connected';
+                    connectionStatus.className = 'status-connected';
+                    addToOutput('WebSocket connection established');
+                    
+                    // Update button states
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    sendBtn.disabled = false;
+                };
+                
+                ws.onmessage = function(event) {
+                    addToOutput(`Received: ${event.data}`);
+                };
+                
+                ws.onclose = function(event) {
+                    connectionStatus.textContent = 'Disconnected';
+                    connectionStatus.className = 'status-disconnected';
+                    addToOutput('WebSocket connection closed');
+                    
+                    // Update button states
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    sendBtn.disabled = true;
+                    
+                    ws = null;
+                };
+                
+                ws.onerror = function(event) {
+                    addToOutput('WebSocket error occurred');
+                };
+            }
+            
+            function disconnectWebSocket() {
+                if (ws) {
+                    ws.close();
+                }
+            }
+            
+            function sendMessage() {
+                if (!ws) {
+                    alert('Please connect to WebSocket first');
+                    return;
+                }
+                
+                const inputData = document.getElementById('inputData').value;
+                try {
+                    // Try to parse as JSON to validate
+                    const jsonData = JSON.parse(inputData);
+                    ws.send(inputData);
+                    addToOutput(`Sent: ${JSON.stringify(jsonData, null, 2)}`);
+                } catch (e) {
+                    alert('Invalid JSON format: ' + e.message);
+                }
+            }
+            
+            function clearOutput() {
+                document.getElementById('output').innerHTML = '';
+            }
+            
+            function addToOutput(message) {
+                const output = document.getElementById('output');
+                const timestamp = new Date().toLocaleTimeString();
+                
+                // Create a new element for this message
+                const messageElement = document.createElement('div');
+                messageElement.innerHTML = `[${timestamp}] ${message}`;
+                
+                // Add the new message
+                output.appendChild(messageElement);
+                output.scrollTop = output.scrollHeight;
+            }
+        </script>
+    </body>
+</html>

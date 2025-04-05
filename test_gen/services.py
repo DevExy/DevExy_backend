@@ -65,13 +65,19 @@ class TestGenerationService:
         ])
         
         prompt = f"""
-        I need you to generate unit tests for the following files:
+        Generate comprehensive unit tests for the following files:
         
         {file_contents}
         
-        Additional context: {request.description}
+        Follow these best practices for unit testing:
+        1. Cover all main functionality and edge cases
+        2. Use descriptive test names that explain what's being tested
+        3. Structure tests with arrange/act/assert pattern
+        4. Properly mock external dependencies
+        5. Include appropriate assertions to verify correctness
+        6. Follow pytest conventions if using pytest
+        7. Add docstrings explaining test purpose
         
-        Generate comprehensive unit tests that cover the main functionality.
         For each file, provide a corresponding test file in the appropriate location within {request.test_directory}.
         
         Format your response as JSON compatible with this schema:
@@ -91,6 +97,6 @@ class TestGenerationService:
                 if chunk.text:
                     yield chunk.text
                     await asyncio.sleep(0.01)  # Small delay to prevent overwhelming the client
-                    
+                
         except Exception as e:
             yield f"Error generating tests: {str(e)}"
