@@ -29,9 +29,28 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     user_id: int
 
-class User(BaseModel):
+class User(UserBase):
     id: int
     is_active: bool
     created_at: datetime
+    updated_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    github_username: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class UserUpdateWithPassword(UserUpdate):
+    password: Optional[str] = None
+    confirm_password: Optional[str] = None
+    
+    @field_validator('confirm_password')
+    def passwords_match(cls, v, info):
+        if 'password' in info.data and info.data['password'] is not None:
+            if v != info.data['password']:
+                raise ValueError('Passwords do not match')
+        return v

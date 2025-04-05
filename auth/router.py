@@ -70,3 +70,34 @@ async def login(
 @router.get("/me", response_model=schemas.User)
 async def get_current_user(current_user: models.User = Depends(dependencies.get_current_user)):
     return current_user
+
+@router.put("/update", response_model=schemas.User)
+async def update_user(
+    user_update: schemas.UserUpdateWithPassword,
+    current_user: models.User = Depends(dependencies.get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Check if email exists and belongs to another user
+    if user_update.email and user_update.email != current_user.email:
+        db_user = db.query(models.User).filter(models.User.email == user_update.email).first()
+        if db_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered to another user"
+            )
+    
+    # Update user fields if provided
+    if user_update.full_name:
+        current_user.full_name = user_update.full_name
+    if user_update.email:
+        current_user.email = user_update.email
+    if user_update.github_username is not None:  # Allows setting to empty string
+        current_user.github_username = user_update.github_username
+    
+    # Update password if provided
+    if user_update.password:
+        current_user.password = utils.get_password_hash(user_update.password)
+    
+    db.commit()
+    db.refresh(current_user)
+    return current_user
