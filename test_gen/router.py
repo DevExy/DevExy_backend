@@ -74,17 +74,23 @@ async def generate_tests_websocket(
         await websocket.send_text(f"Authentication error: {str(e)}")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
 
-@router.get("/docs", response_class=HTMLResponse, tags=["Documentation"])
-async def websocket_documentation():
-    """
-    Interactive WebSocket documentation and tester for unit test generation
-    """
-    # Get the path to the HTML file
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    html_path = os.path.join(current_dir, "websocket_docs.html")
-    
-    # Read the HTML content
-    with open(html_path, "r") as f:
-        html_content = f.read()
+@router.post("/generate-unit-tests", response_model=schemas.TestGenerationResponse)
+async def generate_tests(
+    request: schemas.TestGenerationRequest,
+    current_user: User = Depends(get_active_user)
+):
+    """Generate unit tests for provided files"""
+    try:
+        service = TestGenerationService()
+        generated_tests = await service.generate_tests(request)
         
-    return HTMLResponse(content=html_content)
+        return schemas.TestGenerationResponse(
+            tests=generated_tests,
+            message="Unit tests generated successfully"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating tests: {str(e)}"
+        )
+
