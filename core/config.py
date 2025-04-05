@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # JWT settings
     SECRET_KEY: str = os.environ.get("SECRET_KEY", "your-secret-key-change-in-production")
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 300000
     
     # Gemini API settings
     GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "your-gemini-api-key")
