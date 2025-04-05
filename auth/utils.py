@@ -3,8 +3,12 @@ from jose import jwt
 from passlib.context import CryptContext
 from core.config import settings
 
-# Password hashing setup
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing setup - update the configuration to avoid bcrypt version detection issue
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=12  # Explicitly set rounds to avoid version detection issues
+)
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
