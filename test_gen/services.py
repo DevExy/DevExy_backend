@@ -223,4 +223,90 @@ class TestGenerationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error generating integration tests: {str(e)}"
             )
-    
+            
+    async def generate_stress_tests(self, request: schemas.TestGenerationRequest) -> List[schemas.GeneratedTest]:
+        """Generate stress/load tests using Locust with Gemini API"""
+        
+        # Create prompt with file contents
+        file_contents = "\n\n".join([
+            f"File: {file.filepath}\n```\n{file.content}\n```" 
+            for file in request.files
+        ])
+        
+        prompt = f"""
+        I need you to generate stress tests using Locust for the following files:
+        
+        {file_contents}
+        
+        Additional context: {request.description}
+        
+        Generate comprehensive stress/load tests that:
+        1. Define appropriate user behaviors using Locust's HttpUser class
+        2. Configure realistic wait times between requests
+        3. Implement proper task sets with @task decorators
+        4. Include proper assertions to verify responses
+        5. Set up appropriate test scenarios for load testing
+        6. Add configurations for different load profiles (users, spawn rate)
+        7. Include proper documentation on how to run the tests
+        
+        For each file that contains APIs/endpoints, provide a corresponding Locust test file in the appropriate location within {request.test_directory}.
+        
+        Format your response as a JSON array of test files, where each test file has a 'filepath' and 'content' property. Example:
+        [
+            {{
+                "filepath": "{request.test_directory}/locustfile.py",
+                "content": "# Locust test content here\\n..."
+            }},
+            {{
+                "filepath": "{request.test_directory}/README.md",
+                "content": "# Instructions on how to run the stress tests\\n..."
+            }}
+        ]
+        """
+        
+        try:
+            # Run the synchronous API call in a thread pool to avoid blocking
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
+                model="gemini-2.0-flash",
+                contents=prompt
+            )
+            
+            # Parse the JSON response string into a Python object
+            try:
+                # Try to extract JSON from the response text
+                response_text = response.text
+                generated_tests_data = json.loads(response_text)
+                
+                # Convert the parsed JSON data to our schema objects
+                generated_tests = [
+                    schemas.GeneratedTest(filepath=test["filepath"], content=test["content"])
+                    for test in generated_tests_data
+                ]
+                
+                return generated_tests
+            except json.JSONDecodeError as e:
+                # If response isn't valid JSON, try to extract JSON from the text
+                # It might be embedded in a markdown code block or have extra text
+                import re
+                json_match = re.search(r'\[\s*{.*}\s*\]', response.text, re.DOTALL)
+                if json_match:
+                    try:
+                        generated_tests_data = json.loads(json_match.group(0))
+                        generated_tests = [
+                            schemas.GeneratedTest(filepath=test["filepath"], content=test["content"])
+                            for test in generated_tests_data
+                        ]
+                        return generated_tests
+                    except:
+                        pass
+                    
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to parse generated tests: {str(e)}"
+                )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error generating stress tests: {str(e)}"
+            )
